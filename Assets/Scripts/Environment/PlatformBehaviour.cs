@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 public class PlatformBehaviour : MonoBehaviour
 {
@@ -10,6 +10,19 @@ public class PlatformBehaviour : MonoBehaviour
         ProximityMoving
     }
 
+    public enum MoveAxis
+    {
+        X,
+        Y,
+        Z
+    }
+
+    public enum StartDirection
+    {
+        Positive,
+        Negative
+    }
+
     [Header("Platform Type")]
     public PlatformType platformType;
 
@@ -17,20 +30,25 @@ public class PlatformBehaviour : MonoBehaviour
     // DISAPPEAR SETTINGS
     // =========================
     [Header("Timed Disappear")]
-    public float disappearDelay = 1f; // 0 = instant
+    public float disappearDelay = 1f;
     private float timer;
     private bool steppedOn;
 
     // =========================
-    // BACK & FORTH MOVEMENT
+    // MOVING PLATFORM
     // =========================
-    [Header("Back & Forth Movement")]
-    public Vector3 moveDirection = Vector3.right;
+    [Header("Moving Platform")]
+    public MoveAxis moveAxis = MoveAxis.X;
     public float moveDistance = 3f;
     public float backAndForthSpeed = 2f;
+    public StartDirection startDirection = StartDirection.Positive;
+    public bool smoothMovement = true;
 
     private Vector3 startPosition;
-    private bool movingForward = true;
+    private Vector3 positivePoint;
+    private Vector3 negativePoint;
+
+    private int moveDirectionSign = 1;
 
     private Vector3 lastPosition;
     public Vector3 PlatformDelta { get; private set; }
@@ -49,7 +67,15 @@ public class PlatformBehaviour : MonoBehaviour
     void Start()
     {
         startPosition = transform.position;
+
+        Vector3 axis = GetAxisVector();
+
+        positivePoint = startPosition + axis * moveDistance;
+        negativePoint = startPosition - axis * moveDistance;
+
         lastPosition = transform.position;
+
+        moveDirectionSign = (startDirection == StartDirection.Positive) ? 1 : -1;
     }
 
     void Update()
@@ -66,7 +92,7 @@ public class PlatformBehaviour : MonoBehaviour
                 break;
 
             case PlatformType.Moving:
-                HandleBackAndForthMovement();
+                HandleContinuousMovement();
                 break;
 
             case PlatformType.ProximityMoving:
@@ -76,6 +102,18 @@ public class PlatformBehaviour : MonoBehaviour
 
         PlatformDelta = transform.position - lastPosition;
         lastPosition = transform.position;
+    }
+
+    Vector3 GetAxisVector()
+    {
+        switch (moveAxis)
+        {
+            case MoveAxis.X: return Vector3.right;
+            case MoveAxis.Y: return Vector3.up;
+            case MoveAxis.Z: return Vector3.forward;
+        }
+
+        return Vector3.right;
     }
 
     // =========================================
@@ -106,31 +144,39 @@ public class PlatformBehaviour : MonoBehaviour
         }
     }
 
-    // =========================
-    // BACK & FORTH MOVEMENT
-    // =========================
-    void HandleBackAndForthMovement()
+    // =========================================
+    // CONTINUOUS PING-PONG MOVEMENT
+    // =========================================
+    void HandleContinuousMovement()
     {
-        float step = backAndForthSpeed * Time.deltaTime;
+        Vector3 axis = GetAxisVector();
 
-        if (movingForward)
+        float speed = backAndForthSpeed;
+
+        if (smoothMovement)
         {
-            transform.position += moveDirection.normalized * step;
-
-            if (Vector3.Distance(startPosition, transform.position) >= moveDistance)
-                movingForward = false;
+            float distanceToEdge = moveDistance - Mathf.Abs(Vector3.Dot(transform.position - startPosition, axis));
+            speed = Mathf.Lerp(0.5f, backAndForthSpeed, distanceToEdge / moveDistance);
         }
-        else
-        {
-            transform.position -= moveDirection.normalized * step;
 
-            if (Vector3.Distance(startPosition, transform.position) <= 0.05f)
-                movingForward = true;
+        transform.position += axis * moveDirectionSign * speed * Time.deltaTime;
+
+        float offset = Vector3.Dot(transform.position - startPosition, axis);
+
+        if (offset > moveDistance)
+        {
+            transform.position = startPosition + axis * moveDistance;
+            moveDirectionSign = -1;
+        }
+        else if (offset < -moveDistance)
+        {
+            transform.position = startPosition - axis * moveDistance;
+            moveDirectionSign = 1;
         }
     }
 
     // =========================================
-    // PROXIMITY MOVEMENT (ONE DIRECTION ONLY)
+    // PROXIMITY MOVEMENT
     // =========================================
     void HandleProximityMovement()
     {
@@ -141,7 +187,8 @@ public class PlatformBehaviour : MonoBehaviour
 
         if (distance <= activationRange)
         {
-            transform.position += moveDirection.normalized * proximitySpeed * Time.deltaTime;
+            Vector3 axis = GetAxisVector();
+            transform.position += axis * proximitySpeed * Time.deltaTime;
         }
     }
 

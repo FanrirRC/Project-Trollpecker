@@ -127,9 +127,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PlatformBehaviour
   platformType: 2
   disappearDelay: 1
-  moveDirection: {x: 0, y: 0, z: 1}
-  moveDistance: 3
-  backAndForthSpeed: 2
+  moveAxis: 0
+  moveDistance: 5.5
+  backAndForthSpeed: 3.6
+  startDirection: 0
+  smoothMovement: 0
   activationRange: 5
   proximitySpeed: 4
   player: {fileID: 0}
